@@ -1,8 +1,7 @@
 import time
-import urllib.parse
-
 from lxml import html
 from selenium import webdriver
+from sqlite_db import create_db, save_product_database
 
 URL = "https://www.target.com/s?searchTerm={}"
 
@@ -27,6 +26,7 @@ def create_search_record(item):
     description = "".join(item.xpath(".//div[@class='styles_truncate__Eorq7 sc-4d32bc34-0 kkvIvZ']/text()"))
     price = "".join(item.xpath(".//span[@data-test='current-price']/span/text()"))
     reviews = "".join(item.xpath(".//span[@class='sc-94776d85-1 ickohb']/text()"))
+    reviews = int(reviews.split()[0]) if reviews else None
     url = f"https://www.target.com{"".join(item.xpath(".//a[@class='sc-e851bd29-0 sc-f76ad31b-1 hNVRbT dpaMdN h-display-block ']/@href"))}"
     return description, price, reviews, url
 
@@ -82,6 +82,10 @@ def scrape_target(keywords: str):
         scroll_the_page(driver)
         time.sleep(2)
         tree = html.fromstring(driver.page_source)
+
+    create_db(keywords)
+    for record in page_data:
+        save_product_database(keywords, record[0], record[1], record[2], record[3])
 
 
 if __name__ == '__main__':
