@@ -1,4 +1,5 @@
 import time
+import urllib.parse
 
 from lxml import html
 from selenium import webdriver
@@ -32,7 +33,6 @@ def create_search_record(item):
 
 def scroll_the_page(driver, scroll_amount=200):
     scroll_amount = scroll_amount  # Pixels to scroll each time
-
     while True:
         driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
         time.sleep(0.2)  # Pause for a short time
@@ -40,33 +40,48 @@ def scroll_the_page(driver, scroll_amount=200):
         # Check if we've reached the bottom of the page
         scroll_position = driver.execute_script("return window.pageYOffset + window.innerHeight")
         page_height = driver.execute_script("return document.body.scrollHeight")
-
         if scroll_position >= page_height:
             break
+
+
+def get_number_of_pages(tree) -> int:
+    num_pages = "".join(tree.xpath('//*[@id="select-custom-button-id"]/span/text()')).split()[3]
+    return int(num_pages)
 
 
 def scrape_target(keywords: str):
     url = URL.format(keywords.replace(" ", "-"))
     driver = chrome_webdriver()
     driver.get(url)
-
     time.sleep(2)
     scroll_the_page(driver, 200)
     time.sleep(2)
-
     tree = html.fromstring(driver.page_source)
-
-    items = get_page_items(tree)
-
     page_data = list()
 
-    for item in items:
-        record = create_search_record(item)
-        if record[0] or record[1]:
-            page_data.append(record)
+    num_pages = get_number_of_pages(tree)
+    nao_query = 0
 
-    print(page_data)
-    print(len(page_data))
+    for num in range(num_pages):
+        items = get_page_items(tree)
+        if not items:
+            break
+
+        for item in items:
+            record = create_search_record(item)
+            if record[0] or record[1]:
+                page_data.append(record)
+
+        if num >= (num_pages-1):
+            driver.close()
+            break
+
+        nao_query += 24
+        driver.get(f"{url}&Nao={nao_query}")
+        time.sleep(2)
+        scroll_the_page(driver)
+        time.sleep(2)
+        tree = html.fromstring(driver.page_source)
 
 
 if __name__ == '__main__':
